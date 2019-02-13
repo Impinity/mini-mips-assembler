@@ -1,3 +1,7 @@
+// Jean Remy Bougeois-Cruz
+// School: jrb14b@my.fsu.edu
+// Personal: jrb14b@impinity.com
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,13 +14,14 @@ typedef struct {
 Label labList[100];
 int labCount;
 
+// Take an operands string and converts an $0 to $x0 to be compatible with my translation function.
 char * convertZeroes(char * str)
 {
-	int rCount = 0;
+	int i, rCount = 0;
 	char * returnVal;
 	char converted [50];
 	memset(converted, 0, sizeof(converted));
-	for(int i = 0; i < strlen(str); i++)
+	for(i = 0; i < strlen(str); i++)
 	{
 		if(str[i] == '$' && str[i + 1] == '0')
 		{
@@ -38,6 +43,8 @@ char * convertZeroes(char * str)
 	return returnVal;
 }
 
+// Helper function to get the op code of an instruction. Otherwise I can't group multiple instructions together in
+// the translation function as strings cant be used in switch statements.
 unsigned int getOpCode(char * instruction)
 {
 	if (strcmp(instruction, "add") == 0)
@@ -80,18 +87,23 @@ unsigned int getOpCode(char * instruction)
 	{
 		return 2;
 	}
+	else if (strcmp(instruction, "beq") == 0)
+	{
+		return 4;
+	}
 	else if (strcmp(instruction, "la") == 0)
 	{
 		return 666;
 	}
 	else
 	{
-		return -1;
+		return 1;
 	}
 
 }
 
 // Determines register number based on character before number ($t0-$t7 or $s0-$s7)
+// Otherwise we know it's a $0
 unsigned short regType(char type)
 {
 	switch (type) {
@@ -107,11 +119,10 @@ unsigned short regType(char type)
 
 void translateAndPrint(unsigned int op, int PC, char * operands) {
 	unsigned int result = 0;				// Variable for the final instruction
-	int immed, targaddr;					// For I-Type instructions
+	int immed, targaddr, i;					// For I-Type instructions
 	unsigned short rs, rt, rd, shamt;		// Variables for instruction fields
-	char label [50];
-	char temper [ 50];
-	char rsType, rtType, rdType;
+	char label [50];                        // For labels during jump and branch
+	char rsType, rtType, rdType;            // Char for letter part of register (t in $t7)
 
 	switch(op) {
 		/**
@@ -216,20 +227,22 @@ void translateAndPrint(unsigned int op, int PC, char * operands) {
 			result = result | immed;
 			break;
 		/**
-		 * BNE
+		 * BNE, BEQ
 		 * I - Type
 		 * Instruction $rs, $rt, label
 		 */
+		case 4:
 		case 5:
 			sscanf(operands, "$%c%hu,$%c%hu,%s", &rsType, &rs, &rtType, &rt, label);
 			rs = rs + regType(rsType);
 			rt = rt + regType(rtType);
 
-			for (int i = 0; i < labCount; i++) {
+			for (i = 0; i < labCount; i++) {
 				if (strcmp(labList[i].name, label) == 0) {
-					immed = (labList[i].address - PC) / 4;
+					immed = (labList[i].address - (PC)) / 4;
 				}
 			}
+			immed -= 1;     // PC + 1 relative addressing
 
 			immed = immed & 0xFFFF;
 
@@ -247,7 +260,7 @@ void translateAndPrint(unsigned int op, int PC, char * operands) {
 		 * Instruction label
 		 */
 		case 2:
-			for (int i = 0; i < labCount; i++) {
+			for (i = 0; i < labCount; i++) {
 				if (strcmp(labList[i].name, operands) == 0) {
 					targaddr = labList[i].address << 4;
 					targaddr = targaddr >> 6;
@@ -268,7 +281,7 @@ void translateAndPrint(unsigned int op, int PC, char * operands) {
 			int upper, lower;
 			rt = rt + regType(rtType);
 			targaddr = 0;
-			for (int i = 0; i < labCount; i++) {
+			for (i = 0; i < labCount; i++) {
 				//strcpy(temper, labList[i].name);
 				if (strcmp(labList[i].name, label) == 0) {
 					targaddr = labList[i].address;
@@ -312,8 +325,6 @@ int main() {
 	char tok1[50], tok2[25], tok3[25];
 	unsigned int opCode;
 	int textSection = 0, PC = 0;
-	freopen("C:\\Users\\jrb14\\CLionProjects\\CompOrgProj1\\Tests\\test9.asm","r",stdin);    // To be removed
-
 	labCount = 0;
 	//First pass, gets address of labels
 	while (fgets(fileLine, 100, stdin))
