@@ -2,6 +2,10 @@
 
 An Assembler for a subset of MIPS.
 
+**Usage:**
+gcc MiniMips.c
+./a.out < mipsCode.asm
+
 **Supported Instructions:**
 add, addi, nor, ori, sll, lui, sw, lw, beq, bne, j, la
 
